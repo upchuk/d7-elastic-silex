@@ -1,0 +1,29 @@
+{% extends "page.html.twig" %}
+
+{% block title %}{{ node._source.title }}{% endblock %}
+
+{% block content %}
+
+    <article>
+        <h1>{{ node._source.title }}</h1>
+
+        <div id="content">
+            {% if node._source.field_image %}
+                <div class="field-image">
+                    {% for image in node._source.field_image %}
+                        <img src="{{ image.url }}" alt="img.alt"/>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% if node._source.body %}
+                <div class="field-body">
+                    {% for body in node._source.body %}
+                        {{ body.value|striptags('<p><div><br><img><a>')|raw }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </article>
+
+{% endblock %}

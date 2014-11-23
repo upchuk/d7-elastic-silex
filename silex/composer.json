@@ -1,0 +1,12 @@
+{
+    "name": "upchuk/elastic-silex",
+    "description": "A demo silex app using elasticsearch as a data source",
+    "require": {
+        "silex/silex": "~1.2",
+        "elasticsearch/elasticsearch": "~1.0",
+        "symfony/twig-bridge": "~2.3"
+    },
+    "autoload": {
+      "psr-0": { "": "src/" }
+    }
+}

@@ -1,0 +1,16 @@
+body {
+  padding: 20px 0 0 40px;
+}
+article {
+  max-width: 960px;
+}
+h1 {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+h3 {
+  margin-bottom: 5px;
+}
+#content {
+  margin-top: 20px;
+}

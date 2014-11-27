@@ -1,3 +1,5 @@
 name = Elastic
 description = Demo module using Elastic with Drupal
 core = 7.x
+
+dependencies[] = elasticsearch_connector

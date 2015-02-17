@@ -8,38 +8,39 @@
  */
 function _elastic_prepare_node($node) {
 
-  if (is_object($node)) {
-    $params = array(
-      'index' => 'node',
-      'type' => $node->type,
-      'body' => array(),
-    );
+  if ( ! is_object($node)) {
+    return;
   }
 
+  $params = array(
+    'index' => 'node',
+    'type' => $node->type,
+    'body' => array(),
+  );
+
+  // Add the simple properties
   $wanted = array('vid', 'uid', 'title', 'log', 'status', 'comment', 'promote', 'sticky', 'nid', 'type', 'language', 'created', 'changed', 'revision_timestamp', 'revision_uid');
-  foreach ((array) $node as $key => $prop) {
-    if (in_array($key, $wanted)) {
-      $params['body'][$key] = $prop;
-    }
-    if (strpos($key, 'field') !== false || $key == 'body') {
-      $field = field_get_items('node', $node, $key);
-      if ($field) {
+  $exist = array_filter($wanted, function($property) use($node) {
+    return property_exists($node, $property);
+  });
+  foreach ($exist as $field) {
+    $params['body'][$field] = $node->{$field};
+  }
 
-        // Special case with image field.
-        if ($key == 'field_image') {
-          foreach ($field as &$img) {
-            $img = file_load($img['fid']);
-            $img->url = file_create_url($img->uri);
-          }
-          $params['body'][$key] = $field;
-        }
+  // Add the body field if exists
+  $body_field = isset($node->body) ? field_get_items('node', $node, 'body') : false;
+  if ($body_field) {
+    $params['body']['body'] = $body_field;
+  }
 
-        // Default.
-        else {
-          $params['body'][$key] = $field;
-        }
-      }
-    }
+  // Add the image field if exists
+  $image_field = isset($node->field_image) ? field_get_items('node', $node, 'field_image') : false;
+  if ($image_field) {
+    $params['body']['field_image'] = array_map(function($img) {
+      $img = file_load($img['fid']);
+      $img->url = file_create_url($img->uri);
+      return $img;
+    }, $image_field);
   }
 
   return $params;
@@ -78,10 +79,10 @@ function elastic_node_insert($node) {
 
   if ($params) {
     $result = $client->index($params);
-    if ($result && $result['created'] == true) {
+    if ($result && $result['created'] === true) {
       drupal_set_message('The node has been saved to Elastic.');
     }
-    elseif ($result && $result['created'] == false) {
+    if ($result && $result['created'] === false) {
       drupal_set_message('There was a problem saving this node to Elastic.');
     }
   }
@@ -91,24 +92,24 @@ function elastic_node_insert($node) {
  * Implements hook_node_update().
  */
 function elastic_node_update($node) {
+  if ($node->is_new !== false) {
+    return;
+  }
 
-  if ($node->is_new == false) {
-    $client = elasticsearch_connector_get_client_by_id('my_cluster_id');
-    $params = _elastic_prepare_node($node);
-    if ($params) {
-      // If the node is in elastic, update it by specifying its id
-      $result = _elastic_perform_node_search_by_id($client, $node);
-      if ($result && $result['hits']['total'] == 1) {
-        $params['id'] = $result['hits']['hits'][0]['_id'];
-        $version = $result['hits']['hits'][0]['_version'];
-        $index = $client->index($params);
-        if ($index['_version'] == $version + 1) {
-          drupal_set_message('The node has been updated in Elastic.');
-        }
-        else {
-          drupal_set_message('There was a problem updating this node in Elastic.');
-        }
+  $client = elasticsearch_connector_get_client_by_id('my_cluster_id');
+  $params = _elastic_prepare_node($node);
+  if ($params) {
+    // If the node is in elastic, update it by specifying its id.
+    $result = _elastic_perform_node_search_by_id($client, $node);
+    if ($result && $result['hits']['total'] === 1) {
+      $params['id'] = $result['hits']['hits'][0]['_id'];
+      $version = $result['hits']['hits'][0]['_version'];
+      $index = $client->index($params);
+      if ($index['_version'] !== $version + 1) {
+        drupal_set_message('There was a problem updating this node in Elastic.');
+        return;
       }
+      drupal_set_message('The node has been updated in Elastic.');
     }
   }
 }
@@ -117,27 +118,22 @@ function elastic_node_update($node) {
  * Implements hook_node_delete().
  */
 function elastic_node_delete($node) {
-
   $client = elasticsearch_connector_get_client_by_id('my_cluster_id');
 
   // If the node is in Elastic, remove it
   $result = _elastic_perform_node_search_by_id($client, $node);
-  if ($result && $result['hits']['total'] == 1) {
+  if ($result && $result['hits']['total'] === 1) {
     $params = array(
       'index' => 'node',
       'type' => $node->type,
       'id' => $result['hits']['hits'][0]['_id'],
     );
     $result = $client->delete($params);
-    if ($result && $result['found'] == true) {
-      drupal_set_message('The node has been deleted in Elastic.');
-    }
-    else {
+    if ($result && $result['found'] !== true) {
       drupal_set_message('There was a problem deleting this node in Elastic.');
+      return;
     }
+    drupal_set_message('The node has been deleted in Elastic.');
   }
 
 }
-
-
-

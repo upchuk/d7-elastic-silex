@@ -11,7 +11,7 @@ $app->error(function (\Exception $e, $code) {
       $message = $e->getMessage();
       break;
     default:
-      $message = 'We are sorry, but something went terribly wrong: ' . $e->getMessage();
+      $message = 'We are sorry, but something went terribly wrong. ' . $e->getMessage();
   }
 
   return new Response($message);
@@ -37,18 +37,16 @@ $app->get('/node/{nid}', function (Silex\Application $app, $nid) {
   }
 
   $result = $client->search($params);
-  if ($result && $result['hits']['total'] > 0) {
-    if ($result['hits']['total'] == 1) {
-      $node = $result['hits']['hits'];
-      return $app['twig']->render('node.html.twig', array('node' => reset($node)));
-    }
-    else {
-      return new Response("Here there should be a listing of nodes...");
-    }
 
+  if ($result && $result['hits']['total'] === 0) {
+    $app->abort(404, sprintf('Node %s does not exist.', $nid));
   }
-  else {
-    $app->abort(404, "Node $nid does not exist.");
+
+  if ($result['hits']['total'] === 1) {
+    $node = $result['hits']['hits'];
+    return $app['twig']->render('node.html.twig', array('node' => reset($node)));
   }
+
+  return new Response('Here there should be a listing of nodes...');
 
 })->value('nid', 'empty');

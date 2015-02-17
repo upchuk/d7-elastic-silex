@@ -77,15 +77,18 @@ function elastic_node_insert($node) {
   $client = elasticsearch_connector_get_client_by_id('my_cluster_id');
   $params = _elastic_prepare_node($node);
 
-  if ($params) {
-    $result = $client->index($params);
-    if ($result && $result['created'] === true) {
-      drupal_set_message('The node has been saved to Elastic.');
-    }
-    if ($result && $result['created'] === false) {
-      drupal_set_message('There was a problem saving this node to Elastic.');
-    }
+  if ( ! $params) {
+    drupal_set_message(t('There was a problem saving this node to Elastic.'));
+    return;
   }
+
+  $result = $client->index($params);
+  if ($result && $result['created'] === false) {
+    drupal_set_message(t('There was a problem saving this node to Elastic.'));
+    return;
+  }
+
+  drupal_set_message(t('The node has been saved to Elastic.'));
 }
 
 /**
@@ -98,20 +101,28 @@ function elastic_node_update($node) {
 
   $client = elasticsearch_connector_get_client_by_id('my_cluster_id');
   $params = _elastic_prepare_node($node);
-  if ($params) {
-    // If the node is in elastic, update it by specifying its id.
-    $result = _elastic_perform_node_search_by_id($client, $node);
-    if ($result && $result['hits']['total'] === 1) {
-      $params['id'] = $result['hits']['hits'][0]['_id'];
-      $version = $result['hits']['hits'][0]['_version'];
-      $index = $client->index($params);
-      if ($index['_version'] !== $version + 1) {
-        drupal_set_message('There was a problem updating this node in Elastic.');
-        return;
-      }
-      drupal_set_message('The node has been updated in Elastic.');
-    }
+
+  if ( ! $params) {
+    drupal_set_message(t('There was a problem updating this node in Elastic.'));
+    return;
   }
+
+  $result = _elastic_perform_node_search_by_id($client, $node);
+  if ($result && $result['hits']['total'] !== 1) {
+    drupal_set_message(t('There was a problem updating this node in Elastic.'));
+    return;
+  }
+
+  $params['id'] = $result['hits']['hits'][0]['_id'];
+  $version = $result['hits']['hits'][0]['_version'];
+  $index = $client->index($params);
+
+  if ($index['_version'] !== $version + 1) {
+    drupal_set_message(t('There was a problem updating this node in Elastic.'));
+    return;
+  }
+  
+  drupal_set_message(t('The node has been updated in Elastic.'));
 }
 
 /**
@@ -122,18 +133,25 @@ function elastic_node_delete($node) {
 
   // If the node is in Elastic, remove it
   $result = _elastic_perform_node_search_by_id($client, $node);
-  if ($result && $result['hits']['total'] === 1) {
-    $params = array(
-      'index' => 'node',
-      'type' => $node->type,
-      'id' => $result['hits']['hits'][0]['_id'],
-    );
-    $result = $client->delete($params);
-    if ($result && $result['found'] !== true) {
-      drupal_set_message('There was a problem deleting this node in Elastic.');
-      return;
-    }
-    drupal_set_message('The node has been deleted in Elastic.');
+  if ($result && $result['hits']['total'] !== 1) {
+    drupal_set_message(t('There was a problem deleting this node in Elastic.'));
+    return;
   }
 
+  $params = array(
+    'index' => 'node',
+    'type' => $node->type,
+    'id' => $result['hits']['hits'][0]['_id'],
+  );
+
+  $result = $client->delete($params);
+  if ($result && $result['found'] !== true) {
+    drupal_set_message(t('There was a problem deleting this node in Elastic.'));
+    return;
+  }
+
+  drupal_set_message(t('The node has been deleted in Elastic.'));
 }
+
+
+

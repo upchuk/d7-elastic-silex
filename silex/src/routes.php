@@ -18,7 +18,11 @@ $app->error(function (\Exception $e, $code) {
 });
 
 /**
- * Callback for node route /node/{nid} where {nid} is an optional node id
+ * Route for /node
  */
 $app->get("/node", "Controller\\NodeController::index");
+
+/**
+ * Route /node/{nid} where {nid} is a node id
+ */
 $app->get("/node/{nid}", "Controller\\NodeController::show");

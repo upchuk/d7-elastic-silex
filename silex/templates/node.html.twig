@@ -5,9 +5,11 @@
 {% block content %}
 
     <article>
+
         <h1>{{ node._source.title }}</h1>
 
         <div id="content">
+
             {% if node._source.field_image %}
                 <div class="field-image">
                     {% for image in node._source.field_image %}
@@ -25,5 +27,6 @@
             {% endif %}
         </div>
     </article>
+
 
 {% endblock %}
